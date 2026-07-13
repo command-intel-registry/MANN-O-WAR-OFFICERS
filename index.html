@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Man O' War — Officer Command</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --olive:#2B3323; --khaki:#C7B888; --sand:#EDE6D6;
+    --brass:#A8863C; --brass-bright:#C9A050; --ink:#1C2118; --alert:#8B3A2E; --ok:#5A7A4A;
+    --border:rgba(199,184,136,0.25);
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--olive); color:var(--sand); font-family:'Inter',sans-serif; min-height:100vh; }
+  .stencil{ font-family:'Oswald',sans-serif; letter-spacing:0.04em; }
+  input, select, textarea, button{ font-family:'Inter',sans-serif; }
+  .seal{ width:56px; height:56px; border-radius:9999px; border:2px solid var(--brass); display:flex; align-items:center; justify-content:center; background:radial-gradient(circle at 30% 25%, rgba(201,160,80,0.2), transparent 70%); flex-shrink:0; }
+  .seal span{ font-family:'Oswald',sans-serif; font-weight:700; color:var(--brass-bright); font-size:18px; }
+
+  #loginScreen{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .loginBox{ width:100%; max-width:380px; text-align:center; }
+  .loginBox h1{ font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:22px; margin:16px 0 4px; }
+  .loginBox .sub{ color:var(--khaki); font-size:11px; text-transform:uppercase; letter-spacing:0.18em; margin-bottom:28px; }
+  .card{ background:var(--ink); border:1px solid var(--border); border-radius:4px; padding:24px; text-align:left; }
+  label{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--khaki); margin-bottom:6px; }
+  input{ width:100%; background:rgba(199,184,136,0.06); border:1px solid var(--border); border-radius:3px; padding:10px 12px; color:var(--sand); font-size:14px; margin-bottom:14px; }
+  input:focus{ outline:none; border-color:var(--brass); }
+  button{ cursor:pointer; }
+  .btn-brass{ background:var(--brass); color:var(--ink); border:none; border-radius:3px; padding:12px; font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.1em; font-family:'Oswald',sans-serif; }
+  .btn-brass{ width:100%; }
+  .btn-brass:hover{ background:var(--brass-bright); }
+  .btn-brass:disabled{ opacity:0.5; }
+  .error{ background:rgba(139,58,46,0.15); border:1px solid rgba(139,58,46,0.4); color:#E8B4A8; font-size:13px; padding:10px 12px; border-radius:3px; margin-bottom:14px; }
+
+  #dashboard{ display:none; }
+  header{ display:flex; align-items:center; justify-content:space-between; padding:16px 24px; border-bottom:1px solid var(--border); }
+  header .brand{ display:flex; align-items:center; gap:10px; }
+  header h1{ font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:16px; margin:0; }
+  header .role{ font-size:11px; color:var(--khaki); text-transform:uppercase; letter-spacing:0.1em; }
+  .logout{ background:none; border:1px solid var(--border); color:var(--khaki); padding:8px 14px; border-radius:3px; font-size:12px; text-transform:uppercase; letter-spacing:0.05em; }
+
+  .tabs{ display:flex; gap:4px; max-width:840px; margin:20px auto 0; padding:0 20px; }
+  .tab-btn{ background:none; border:none; color:var(--khaki); padding:10px 18px; font-size:13px; text-transform:uppercase; letter-spacing:0.06em; border-bottom:2px solid transparent; font-family:'Oswald',sans-serif; }
+  .tab-btn.active{ color:var(--brass-bright); border-bottom-color:var(--brass); }
+
+  main{ max-width:840px; margin:0 auto; padding:24px 20px 80px; }
+  .tab-pane{ display:none; }
+  .tab-pane.active{ display:block; }
+  h2{ font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:20px; margin:0 0 4px; }
+  .desc{ color:var(--khaki); font-size:13px; margin-bottom:24px; }
+  .empty{ text-align:center; padding:40px 20px; color:rgba(237,230,214,0.4); font-size:13px; border:1px dashed var(--border); border-radius:4px; }
+
+  .app-card{ background:var(--ink); border:1px solid var(--border); border-radius:4px; padding:18px 20px; margin-bottom:12px; }
+  .app-card .name{ font-family:'Oswald',sans-serif; font-size:16px; text-transform:uppercase; margin-bottom:8px; }
+  .app-grid{ display:grid; grid-template-columns:1fr 1fr; gap:6px 20px; font-size:13px; color:rgba(237,230,214,0.75); margin-bottom:14px; }
+  .app-grid .lbl{ color:var(--khaki); font-size:10px; text-transform:uppercase; letter-spacing:0.06em; display:block; }
+  .app-actions{ display:flex; gap:10px; }
+  .btn-approve{ background:var(--brass); color:var(--ink); border:none; border-radius:3px; padding:9px 18px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; font-family:'Oswald',sans-serif; }
+  .btn-approve:hover{ background:var(--brass-bright); }
+  .btn-reject{ background:none; border:1px solid var(--alert); color:#E8B4A8; border-radius:3px; padding:9px 18px; font-size:12px; text-transform:uppercase; letter-spacing:0.06em; }
+  .btn-reject:hover{ background:rgba(139,58,46,0.15); }
+
+  .search-row{ display:flex; gap:8px; margin-bottom:20px; }
+  .search-row input{ flex:1; margin-bottom:0; }
+  .btn-ghost{ background:rgba(199,184,136,0.08); border:1px solid var(--border); color:var(--sand); border-radius:3px; padding:10px 18px; font-size:13px; }
+  .btn-ghost:hover{ background:rgba(199,184,136,0.15); }
+
+  .member-row{ background:var(--ink); border:1px solid var(--border); border-radius:4px; padding:14px 18px; margin-bottom:8px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+  .member-row:hover{ border-color:var(--brass); }
+  .member-row .mcode{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--brass-bright); }
+  .member-row .mname{ font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:14px; margin-top:2px; }
+  .status-pill{ font-size:10px; text-transform:uppercase; letter-spacing:0.06em; padding:4px 10px; border-radius:99px; }
+  .status-active{ background:rgba(90,122,74,0.2); color:#9BC084; }
+  .status-awol{ background:rgba(139,58,46,0.2); color:#E8B4A8; }
+  .status-other{ background:rgba(199,184,136,0.15); color:var(--khaki); }
+
+  .detail-panel{ background:var(--ink); border:1px solid var(--brass); border-radius:4px; padding:20px; margin-top:16px; }
+  .detail-panel .mname{ font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:18px; margin-bottom:12px; }
+  .detail-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px 20px; font-size:13px; color:rgba(237,230,214,0.8); margin-bottom:18px; }
+  .detail-grid .lbl{ color:var(--khaki); font-size:10px; text-transform:uppercase; letter-spacing:0.06em; display:block; }
+  .action-row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding-top:14px; border-top:1px solid var(--border); }
+  .action-row select{ background:rgba(199,184,136,0.06); border:1px solid var(--border); color:var(--sand); padding:9px 10px; border-radius:3px; font-size:13px; }
+  .close-btn{ float:right; background:none; border:none; color:var(--khaki); font-size:18px; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="loginBox">
+    <div class="seal" style="margin:0 auto"><span>GTC</span></div>
+    <h1>Officer Command</h1>
+    <p class="sub">Man O' War — Restricted Access</p>
+    <div class="card">
+      <div id="loginError" class="error" style="display:none"></div>
+      <label>Email</label>
+      <input type="email" id="email" placeholder="you@email.com">
+      <label>Password</label>
+      <input type="password" id="password" placeholder="••••••••">
+      <button class="btn-brass" id="loginBtn" onclick="login()">Log In</button>
+    </div>
+  </div>
+</div>
+
+<div id="dashboard">
+  <header>
+    <div class="brand">
+      <div class="seal"><span>GTC</span></div>
+      <div>
+        <h1>Officer Command</h1>
+        <div class="role" id="roleLabel">—</div>
+      </div>
+    </div>
+    <button class="logout" onclick="logout()">Log Out</button>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="pending" onclick="switchTab('pending')">Pending Applications</button>
+    <button class="tab-btn" data-tab="members" onclick="switchTab('members')">Members</button>
+  </div>
+
+  <main>
+    <div id="pane-pending" class="tab-pane active">
+      <h2>Pending Applications</h2>
+      <p class="desc">Review each submission before approving. Approving generates a member code and a one-time secret code — write it down immediately, it won't be shown again.</p>
+      <div id="pendingList"></div>
+    </div>
+
+    <div id="pane-members" class="tab-pane">
+      <h2>Members</h2>
+      <p class="desc">Search by name or member code. Click a member to view details, reset a lost secret code, or update their status.</p>
+      <div class="search-row">
+        <input type="text" id="memberSearch" placeholder="Search name or member code..." onkeydown="if(event.key==='Enter') searchMembers()">
+        <button class="btn-ghost" onclick="searchMembers()">Search</button>
+      </div>
+      <div id="memberResults"></div>
+      <div id="memberDetail"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://vecfcvczglapfjidirjw.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_bzrXlR1byQ5njZULxBaU_w_YMRBCdND";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let currentUserId = null;
+
+  async function login(){
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const btn = document.getElementById('loginBtn');
+    const errBox = document.getElementById('loginError');
+    errBox.style.display = 'none';
+
+    if(!email || !password){
+      errBox.textContent = 'Enter both email and password.';
+      errBox.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Logging in...';
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    btn.disabled = false;
+    btn.textContent = 'Log In';
+
+    if(error){
+      errBox.textContent = error.message === 'Invalid login credentials' ? 'Wrong email or password.' : error.message;
+      errBox.style.display = 'block';
+      return;
+    }
+    showDashboard();
+  }
+
+  async function logout(){
+    await sb.auth.signOut();
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+  }
+
+  function switchTab(name){
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.getElementById('pane-' + name).classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  }
+
+  async function showDashboard(){
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+
+    const { data: { user } } = await sb.auth.getUser();
+    currentUserId = user?.id;
+
+    const { data: profile } = await sb.from('profiles').select('role, full_name').eq('id', currentUserId).single();
+    document.getElementById('roleLabel').textContent = (profile?.role || 'officer').toUpperCase();
+
+    loadPending();
+  }
+
+  async function loadPending(){
+    const { data, error } = await sb.from('pending_registrations').select('*').eq('status', 'pending').order('submitted_at', { ascending: true });
+    const container = document.getElementById('pendingList');
+
+    if(error){ container.innerHTML = `<div class="empty">Could not load applications: ${escapeHtml(error.message)}</div>`; return; }
+    if(!data || data.length === 0){ container.innerHTML = `<div class="empty">No pending applications right now.</div>`; return; }
+
+    container.innerHTML = data.map(p => `
+      <div class="app-card">
+        <div class="name">${escapeHtml(p.full_name)}</div>
+        <div class="app-grid">
+          <div><span class="lbl">Phone</span>${escapeHtml(p.phone || '—')}</div>
+          <div><span class="lbl">DOB</span>${escapeHtml(p.date_of_birth || '—')}</div>
+          <div><span class="lbl">Address</span>${escapeHtml(p.address || '—')}</div>
+          <div><span class="lbl">LGA</span>${escapeHtml(p.lga || '—')}</div>
+          <div><span class="lbl">Guardian</span>${escapeHtml(p.guardian_name || '—')}</div>
+          <div><span class="lbl">Guardian Phone</span>${escapeHtml(p.guardian_phone || '—')}</div>
+        </div>
+        <div class="app-actions">
+          <button class="btn-approve" onclick="approveApplication('${p.id}')">Approve</button>
+          <button class="btn-reject" onclick="rejectApplication('${p.id}')">Reject</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function generateSecretCode(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for(let i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
+    return code;
+  }
+
+  async function hashCode(code){
+    const enc = new TextEncoder().encode(code);
+    const buf = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+
+  async function approveApplication(id){
+    if(!confirm('Approve this application? This creates a real member record.')) return;
+
+    const { data: pending, error: fetchErr } = await sb.from('pending_registrations').select('*').eq('id', id).single();
+    if(fetchErr || !pending){ alert('Could not load this application.'); return; }
+
+    const { count } = await sb.from('members').select('*', { count: 'exact', head: true });
+    const memberCode = 'GTC-' + String((count || 0) + 1).padStart(4, '0');
+    const secretCode = generateSecretCode();
+    const secretHash = await hashCode(secretCode);
+
+    const { data: newMember, error: insertErr } = await sb.from('members').insert({
+      member_code: memberCode,
+      full_name: pending.full_name,
+      phone: pending.phone,
+      address: pending.address,
+      bus_stop: pending.bus_stop,
+      lga: pending.lga,
+      guardian_name: pending.guardian_name,
+      guardian_phone: pending.guardian_phone,
+      date_of_birth: pending.date_of_birth,
+      gender: pending.gender,
+      state_of_origin: pending.state_of_origin,
+      blood_group: pending.blood_group,
+      genotype: pending.genotype,
+      medical_conditions: pending.medical_conditions,
+      secret_code_hash: secretHash,
+      status: 'active',
+      approved_by: currentUserId
+    }).select().single();
+
+    if(insertErr){ alert('Failed to create member: ' + insertErr.message); return; }
+
+    await sb.from('status_history').insert({
+      member_id: newMember.id, old_status: null, new_status: 'active',
+      changed_by: currentUserId, note: 'Initial approval'
+    });
+
+    await sb.from('pending_registrations').update({
+      status: 'approved', reviewed_by: currentUserId, reviewed_at: new Date().toISOString()
+    }).eq('id', id);
+
+    alert(`APPROVED\n\nMember Code: ${memberCode}\nSecret Code: ${secretCode}\n\nWrite this down and hand it to the cadet now - the secret code will not be shown again.`);
+    loadPending();
+  }
+
+  async function rejectApplication(id){
+    if(!confirm('Reject this application?')) return;
+    await sb.from('pending_registrations').update({
+      status: 'rejected', reviewed_by: currentUserId, reviewed_at: new Date().toISOString()
+    }).eq('id', id);
+    loadPending();
+  }
+
+  async function searchMembers(){
+    const q = document.getElementById('memberSearch').value.trim();
+    const resultsBox = document.getElementById('memberResults');
+    document.getElementById('memberDetail').innerHTML = '';
+
+    let query = sb.from('members').select('*').order('created_at', { ascending: false }).limit(30);
+    if(q){ query = query.or(`full_name.ilike.%${q}%,member_code.ilike.%${q}%`); }
+
+    const { data, error } = await query;
+    if(error){ resultsBox.innerHTML = `<div class="empty">Search failed: ${escapeHtml(error.message)}</div>`; return; }
+    if(!data || data.length === 0){ resultsBox.innerHTML = `<div class="empty">No members found.</div>`; return; }
+
+    resultsBox.innerHTML = data.map(m => {
+      const statusClass = m.status === 'active' ? 'status-active' : m.status === 'awol' ? 'status-awol' : 'status-other';
+      return `
+      <div class="member-row" onclick="viewMember('${m.id}')">
+        <div>
+          <div class="mcode">${escapeHtml(m.member_code)}</div>
+          <div class="mname">${escapeHtml(m.full_name)}</div>
+        </div>
+        <span class="status-pill ${statusClass}">${escapeHtml(m.status)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  async function viewMember(id){
+    const { data: m, error } = await sb.from('members').select('*').eq('id', id).single();
+    if(error || !m){ alert('Could not load member.'); return; }
+
+    const detailBox = document.getElementById('memberDetail');
+    detailBox.innerHTML = `
+      <div class="detail-panel">
+        <button class="close-btn" onclick="document.getElementById('memberDetail').innerHTML=''">✕</button>
+        <div class="mname">${escapeHtml(m.full_name)} — ${escapeHtml(m.member_code)}</div>
+        <div class="detail-grid">
+          <div><span class="lbl">Phone</span>${escapeHtml(m.phone || '—')}</div>
+          <div><span class="lbl">Status</span>${escapeHtml(m.status)}</div>
+          <div><span class="lbl">Address</span>${escapeHtml(m.address || '—')}</div>
+          <div><span class="lbl">LGA</span>${escapeHtml(m.lga || '—')}</div>
+          <div><span class="lbl">Guardian</span>${escapeHtml(m.guardian_name || '—')}</div>
+          <div><span class="lbl">Guardian Phone</span>${escapeHtml(m.guardian_phone || '—')}</div>
+          <div><span class="lbl">Blood Group</span>${escapeHtml(m.blood_group || '—')}</div>
+          <div><span class="lbl">Genotype</span>${escapeHtml(m.genotype || '—')}</div>
+        </div>
+        <div class="action-row">
+          <button class="btn-ghost" onclick="resetSecretCode('${m.id}')">Reset Secret Code</button>
+          <select id="statusSelect-${m.id}">
+            <option value="active" ${m.status==='active'?'selected':''}>Active</option>
+            <option value="inactive" ${m.status==='inactive'?'selected':''}>Inactive</option>
+            <option value="awol" ${m.status==='awol'?'selected':''}>AWOL</option>
+            <option value="suspended" ${m.status==='suspended'?'selected':''}>Suspended</option>
+            <option value="resigned" ${m.status==='resigned'?'selected':''}>Resigned</option>
+            <option value="discharged" ${m.status==='discharged'?'selected':''}>Discharged</option>
+            <option value="transferred" ${m.status==='transferred'?'selected':''}>Transferred</option>
+            <option value="alumni" ${m.status==='alumni'?'selected':''}>Alumni</option>
+          </select>
+          <button class="btn-brass" onclick="updateStatus('${m.id}', '${m.status}')">Update Status</button>
+        </div>
+      </div>`;
+  }
+
+  async function resetSecretCode(memberId){
+    if(!confirm('Reset this member\\'s secret code? The old code will stop working immediately.')) return;
+    const newCode = generateSecretCode();
+    const newHash = await hashCode(newCode);
+
+    const { error } = await sb.from('members').update({ secret_code_hash: newHash, updated_at: new Date().toISOString() }).eq('id', memberId);
+    if(error){ alert('Failed to reset code: ' + error.message); return; }
+
+    alert(`NEW SECRET CODE: ${newCode}\n\nWrite this down and hand it to the cadet now - it will not be shown again.`);
+  }
+
+  async function updateStatus(memberId, oldStatus){
+    const select = document.getElementById('statusSelect-' + memberId);
+    const newStatus = select.value;
+    if(newStatus === oldStatus){ alert('Status unchanged.'); return; }
+
+    const note = prompt('Optional note for this status change (e.g. reason):') || null;
+
+    const { error: updateErr } = await sb.from('members').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', memberId);
+    if(updateErr){ alert('Failed to update status: ' + updateErr.message); return; }
+
+    await sb.from('status_history').insert({
+      member_id: memberId, old_status: oldStatus, new_status: newStatus, changed_by: currentUserId, note
+    });
+
+    alert('Status updated to ' + newStatus.toUpperCase());
+    searchMembers();
+    document.getElementById('memberDetail').innerHTML = '';
+  }
+
+  function escapeHtml(s){
+    return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  (async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if(session) showDashboard();
+  })();
+</script>
+</body>
+</html>
