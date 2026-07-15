@@ -355,9 +355,9 @@
   }
 
   async function resetSecretCode(memberId){
-    if(!confirm('Reset this member\\'s secret code? The old code will stop working immediately.')) return;
-    const newCode = generateSecretCode();
-    const newHash = await hashCode(newCode);
+  if(!confirm("Reset this member's secret code? The old code will stop working immediately.")) return;
+  const newCode = generateSecretCode();
+  const newHash = await hashCode(newCode);
 
     const { error } = await sb.from('members').update({ secret_code_hash: newHash, updated_at: new Date().toISOString() }).eq('id', memberId);
     if(error){ alert('Failed to reset code: ' + error.message); return; }
